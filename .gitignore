@@ -1,0 +1,12 @@
+# 依赖与构建产物
+node_modules/
+frontend-src/
+frontend/dist/
+.build-src/
+
+# 本地开发数据
+.local-data/
+
+# 系统与日志
+.DS_Store
+*.log

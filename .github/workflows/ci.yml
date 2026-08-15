@@ -1,0 +1,48 @@
+name: build-check
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 不指定 version，自动读取 package.json 的 packageManager 字段（pnpm@10.34.5），
+      # 避免与 workflow 内配置的版本冲突
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: 安装依赖（后端运行时依赖 + 构建工具，全部在根 package.json）
+        run: pnpm install
+
+      - name: 构建后端（与 EdgeOne 构建环境一致：只装根依赖）
+        run: node scripts/build-backend.mjs
+
+      - name: 构建前端（验证 versions.json 指定的前端版本可构建）
+        run: node scripts/build-frontend.mjs
+
+      - name: 冒烟测试（merge 模式启动后端并请求 /api/utils/env）
+        run: |
+          mkdir -p /tmp/sub-store-ci
+          SUB_STORE_BACKEND_MERGE=1 \
+          SUB_STORE_FRONTEND_BACKEND_PATH=/abc \
+          SUB_STORE_DATA_BASE_PATH=/tmp/sub-store-ci \
+          node backend/dist/sub-store.bundle.js &
+          SERVER_PID=$!
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:3000/abc/api/utils/env > /tmp/env.json; then break; fi
+            sleep 1
+          done
+          kill $SERVER_PID 2>/dev/null || true
+          cat /tmp/env.json
+          grep -q '"status":\s*"success"' /tmp/env.json

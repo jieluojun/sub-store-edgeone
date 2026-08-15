@@ -1,0 +1,14 @@
+{
+  "subStoreBackend": {
+    "source": "github.com/sub-store-org/Sub-Store",
+    "tag": "2.36.38",
+    "commit": "817f813bc078d3e128b93cc97d025ca5548ca5a5",
+    "note": "backend/ 目录为该 tag 的 backend/ 原样拷贝。升级可运行 scripts/sync-upstream.mjs 自动同步"
+  },
+  "subStoreFrontend": {
+    "source": "github.com/sub-store-org/Sub-Store-Front-End",
+    "tag": "2.29.10",
+    "note": "构建时克隆该 tag 的源码并以 VITE_API_URL=/ 构建。升级可运行 scripts/sync-upstream.mjs 自动同步"
+  },
+  "frontendApiUrl": "/"
+}

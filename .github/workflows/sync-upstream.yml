@@ -1,0 +1,70 @@
+name: sync-upstream
+
+on:
+  schedule:
+    # 每周一 03:23 UTC（北京时间 11:23）
+    - cron: '23 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: 安装依赖
+        run: pnpm install
+
+      - name: 检查并同步上游
+        id: sync
+        run: |
+          set +e
+          node scripts/sync-upstream.mjs --yes
+          code=$?
+          if [ "$code" -eq 0 ]; then
+            echo "updated=true" >> "$GITHUB_OUTPUT"
+          elif [ "$code" -eq 2 ]; then
+            echo "updated=false" >> "$GITHUB_OUTPUT"
+          else
+            exit $code
+          fi
+
+      - name: 更新 lockfile（依赖可能变化）
+        if: steps.sync.outputs.updated == 'true'
+        run: pnpm install
+
+      - name: 重新打包后端
+        if: steps.sync.outputs.updated == 'true'
+        run: node scripts/build-backend.mjs
+
+      - name: 创建更新 PR
+        if: steps.sync.outputs.updated == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: 'chore: 同步上游 Sub-Store 更新'
+          title: 'chore: 同步上游 Sub-Store 更新'
+          body: |
+            自动检测到上游新版本并同步（由 `.github/workflows/sync-upstream.yml` 触发）：
+            - 后端: [Sub-Store](https://github.com/sub-store-org/Sub-Store) backend → 版本见 `versions.json`
+            - 前端: [Sub-Store-Front-End](https://github.com/sub-store-org/Sub-Store-Front-End) → 版本见 `versions.json`
+
+            PR 的 CI 会验证后端打包、前端构建与冒烟测试。合并后 EdgeOne Pages 自动重新构建部署。
+          branch: sync-upstream
+          delete-branch: true
+          add-paths: |
+            backend/**
+            versions.json
+            package.json
+            pnpm-lock.yaml

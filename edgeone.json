@@ -1,0 +1,14 @@
+{
+  "buildCommand": "pnpm run build",
+  "installCommand": "pnpm install",
+  "outputDirectory": "frontend/dist",
+  "nodeVersion": "22.11.0",
+  "cloudFunctions": {
+    "includeFiles": [
+      "frontend/dist/**/*",
+      "frontend/dist/*",
+      "backend/dist/sub-store.bundle.js"
+    ],
+    "maxDuration": 120
+  }
+}
